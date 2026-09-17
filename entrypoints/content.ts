@@ -237,12 +237,13 @@ export default defineContentScript({
         reportStats();
         return;
       }
-      if (prev && prev.enabled && prev.threshold !== next.threshold) {
+      const wasActive = !!prev && prev.enabled && !prev.disabledHosts.includes(location.host);
+      if (wasActive && prev.threshold !== next.threshold) {
         unblurAll();
         void scanRoot(document.documentElement);
         return;
       }
-      if (!prev || !prev.enabled) {
+      if (!wasActive) {
         startObserver();
         void scanRoot(document.documentElement);
       }
