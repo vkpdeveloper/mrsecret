@@ -25,6 +25,7 @@
     "@types/react-dom": "^19.2.3",
     "@wxt-dev/module-react": "^1.1.5",
     "jsdom": "^25.0.1",
+    "playwright": "^1.63.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4",
     "web-ext": "^10.5.0",

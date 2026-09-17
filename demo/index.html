@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Acme Console — Settings</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #0f1115; color: #e2e8f0; }
+    nav { display: flex; gap: 24px; padding: 16px 32px; background: #161a22; border-bottom: 1px solid #262b36; }
+    nav span { color: #94a3b8; font-size: 14px; }
+    main { max-width: 720px; margin: 40px auto; padding: 0 24px; }
+    .card { background: #161a22; border: 1px solid #262b36; border-radius: 10px; padding: 24px; margin-bottom: 20px; }
+    .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #1f2430; font-size: 14px; }
+    .row:last-child { border: none; }
+    .label { color: #94a3b8; }
+    code { font-size: 13px; }
+    button { background: #2563eb; color: #fff; border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; }
+    input { background: #0f1115; border: 1px solid #262b36; color: #e2e8f0; border-radius: 6px; padding: 8px; width: 100%; }
+    h1 { font-size: 20px; } h2 { font-size: 15px; margin-top: 0; }
+  </style>
+</head>
+<body>
+  <nav>
+    <span>Dashboard</span><span>Projects</span><span>Usage</span>
+    <span>Billing</span><span>Docs</span><span>Settings</span>
+  </nav>
+  <main>
+    <h1>Organization settings</h1>
+    <div class="card">
+      <h2>Organization</h2>
+      <div class="row"><span class="label">Workspace</span><span>Acme Robotics Inc.</span></div>
+      <div class="row"><span class="label">Organization ID</span><span>org-9fj2K8sLq0</span></div>
+      <div class="row"><span class="label">Owner</span><span>Vaibhav Patel (vaibhav@example.com)</span></div>
+      <div class="row"><span class="label">Credit balance</span><span>$1,240.55</span></div>
+    </div>
+    <div class="card">
+      <h2>API keys</h2>
+      <div class="row"><span class="label">Production key</span><code>sk-proj-9fK2xLmPqR7vB3nT8yU4wE6sD1cA5gH0jF</code></div>
+      <div class="row"><span class="label">Readonly input</span>
+        <input readonly value="sk-proj-8xW2nPqR5vB7mT3yU9wE1sD4cA6gH0jK2z" /></div>
+      <div class="row"><span class="label">Session token</span><code>eyJhbGciOiJIUzI1NiJ9.eyJvcmdJZCI6Im9yZy05ZmoyIn0.s5k0dGVzdFRva2VuU2lnbmF0dXJlMTIz</code></div>
+    </div>
+    <div class="card">
+      <h2>Team</h2>
+      <div id="team"><p style="color:#94a3b8;font-size:14px">Load a team member to preview MutationObserver scanning.</p></div>
+      <button id="add">Add profile card</button>
+    </div>
+  </main>
+  <script>
+    document.getElementById('add').addEventListener('click', () => {
+      const div = document.createElement('div');
+      div.className = 'row';
+      div.innerHTML = '<span class="label">Member</span><span>Priya Sharma — priya.sharma@acme-robotics.io</span>';
+      document.getElementById('team').appendChild(div);
+    });
+  </script>
+</body>
+</html>

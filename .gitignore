@@ -28,3 +28,4 @@ web-ext.config.ts
 .env*
 *.local
 scripts/smoke.ts
+scripts/e2e.mjs
