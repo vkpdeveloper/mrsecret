@@ -1,4 +1,4 @@
-import { buildContext, collectTextNodes, isCandidateText } from '@/src/lib/candidates';
+import { buildContext, collectShadowRoots, collectTextNodes, isCandidateText } from '@/src/lib/candidates';
 import { detectSecrets } from '@/src/lib/detectors';
 import type { ClassifyResponse, ExtensionMessage, Settings } from '@/src/lib/types';
 import { getSettings } from '@/src/lib/settings';
@@ -17,14 +17,27 @@ export default defineContentScript({
     const processed = new WeakSet<Text>();
     let nextId = 0;
 
+    const BASE_CSS = `.${BLUR_CLASS}{filter:blur(6px);-webkit-filter:blur(6px);border-radius:3px;transition:filter 120ms ease;user-select:none}`;
+    const injectedShadow = new WeakSet<ShadowRoot>();
+
     function injectStyle() {
-      if (document.getElementById(STYLE_ID)) return;
-      const style = document.createElement('style');
-      style.id = STYLE_ID;
-      style.textContent =
-        `.${BLUR_CLASS}{filter:blur(6px);-webkit-filter:blur(6px);border-radius:3px;transition:filter 120ms ease;user-select:none}` +
-        `.mrsecret-hover .${BLUR_CLASS}:hover{filter:none;-webkit-filter:none}`;
-      (document.head ?? document.documentElement).appendChild(style);
+      if (!document.getElementById(STYLE_ID)) {
+        const style = document.createElement('style');
+        style.id = STYLE_ID;
+        style.textContent =
+          BASE_CSS + `.mrsecret-hover .${BLUR_CLASS}:hover{filter:none;-webkit-filter:none}`;
+        (document.head ?? document.documentElement).appendChild(style);
+      }
+      for (const sr of collectShadowRoots(document)) {
+        if (injectedShadow.has(sr)) continue;
+        injectedShadow.add(sr);
+        const style = document.createElement('style');
+        style.id = STYLE_ID;
+        style.textContent =
+          BASE_CSS +
+          `:host-context(.mrsecret-hover) .${BLUR_CLASS}:hover{filter:none;-webkit-filter:none}`;
+        sr.appendChild(style);
+      }
     }
 
     function send(msg: ExtensionMessage): Promise<unknown> {
@@ -35,17 +48,29 @@ export default defineContentScript({
     function reportStats() {
       clearTimeout(statsTimer);
       statsTimer = window.setTimeout(() => {
+        let blurred = document.querySelectorAll(`.${BLUR_CLASS}`).length;
+        for (const sr of collectShadowRoots(document)) {
+          blurred += sr.querySelectorAll(`.${BLUR_CLASS}`).length;
+        }
         void send({
           type: 'STATS',
-          blurred: document.querySelectorAll(`.${BLUR_CLASS}`).length,
+          blurred,
           host: location.host,
         });
       }, 300);
     }
 
     function insideOurs(node: Node): boolean {
-      for (let el = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement; el; el = el.parentElement) {
+      let el: Element | null =
+        node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+      while (el) {
         if (el.hasAttribute?.('data-mrsecret') || el.id === STYLE_ID) return true;
+        if (!el.parentElement) {
+          const r = el.getRootNode();
+          el = r instanceof ShadowRoot ? r.host : null;
+        } else {
+          el = el.parentElement;
+        }
       }
       return false;
     }
@@ -91,6 +116,7 @@ export default defineContentScript({
     async function scanRoot(root: Node) {
       if (!settings?.enabled) return;
       injectStyle();
+      observeShadowRoots();
       document.documentElement.classList.toggle('mrsecret-hover', settings.hoverReveal);
 
       const nodes = collectTextNodes(root).filter((t) => !processed.has(t));
@@ -172,15 +198,18 @@ export default defineContentScript({
     function unblurAll() {
       isMutating = true;
       try {
-        for (const span of document.querySelectorAll(`span.${BLUR_CLASS}`)) {
-          const parent = span.parentNode;
-          if (!parent) continue;
-          while (span.firstChild) parent.insertBefore(span.firstChild, span);
-          parent.removeChild(span);
-          parent.normalize();
-        }
-        for (const el of document.querySelectorAll(`input.${BLUR_CLASS},textarea.${BLUR_CLASS}`)) {
-          el.classList.remove(BLUR_CLASS);
+        const roots: (Document | ShadowRoot)[] = [document, ...collectShadowRoots(document)];
+        for (const r of roots) {
+          for (const span of r.querySelectorAll(`span.${BLUR_CLASS}`)) {
+            const parent = span.parentNode;
+            if (!parent) continue;
+            while (span.firstChild) parent.insertBefore(span.firstChild, span);
+            parent.removeChild(span);
+            parent.normalize();
+          }
+          for (const el of r.querySelectorAll(`input.${BLUR_CLASS},textarea.${BLUR_CLASS}`)) {
+            el.classList.remove(BLUR_CLASS);
+          }
         }
       } finally {
         isMutating = false;
@@ -198,6 +227,19 @@ export default defineContentScript({
       }, 150);
     }
 
+    const OBSERVE_OPTS = { childList: true, subtree: true, characterData: true };
+    let observedRoots = new WeakSet<Node>();
+
+    function observeRoot(root: Node) {
+      if (!observer || observedRoots.has(root)) return;
+      observedRoots.add(root);
+      observer.observe(root, OBSERVE_OPTS);
+    }
+
+    function observeShadowRoots() {
+      for (const sr of collectShadowRoots(document)) observeRoot(sr);
+    }
+
     function startObserver() {
       if (observer) return;
       observer = new MutationObserver((mutations) => {
@@ -212,18 +254,21 @@ export default defineContentScript({
           } else {
             for (const n of m.addedNodes) {
               if (n.nodeType === Node.ELEMENT_NODE || n.nodeType === Node.TEXT_NODE) {
-                if (!insideOurs(n)) pending.add(n);
+                if (insideOurs(n)) continue;
+                pending.add(n);
+                const sr = (n as Element).shadowRoot;
+                if (sr) {
+                  observeRoot(sr);
+                  pending.add(sr);
+                }
               }
             }
           }
         }
         if (pending.size) scheduleScan();
       });
-      observer.observe(document.documentElement, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      });
+      observeRoot(document.documentElement);
+      observeShadowRoots();
     }
 
     function applySettings(next: Settings) {
@@ -234,6 +279,7 @@ export default defineContentScript({
         unblurAll();
         observer?.disconnect();
         observer = null;
+        observedRoots = new WeakSet();
         reportStats();
         return;
       }

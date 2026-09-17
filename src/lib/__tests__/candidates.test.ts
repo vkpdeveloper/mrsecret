@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildContext,
+  collectShadowRoots,
   collectTextNodes,
   hashCandidate,
   isCandidateText,
@@ -38,6 +39,17 @@ describe('collectTextNodes', () => {
   it('skips whitespace-only nodes', () => {
     const d = doc('<div>   <p>real</p>   </div>');
     expect(collectTextNodes(d).map((t) => t.data)).toEqual(['real']);
+  });
+
+  it('collects text inside open shadow roots', () => {
+    const d = doc('<body><div id="host"></div><p>light</p></body>');
+    const host = d.getElementById('host')!;
+    const sr = host.attachShadow({ mode: 'open' });
+    sr.innerHTML = '<span>vaibhav@example.com</span>';
+    const texts = collectTextNodes(d.body).map((t) => t.data);
+    expect(texts).toContain('vaibhav@example.com');
+    expect(texts).toContain('light');
+    expect(collectShadowRoots(d.body)).toContain(sr);
   });
 });
 

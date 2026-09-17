@@ -10,12 +10,36 @@ function inSkippedTree(node: Node): boolean {
 export function collectTextNodes(root: Node): Text[] {
   const doc = root.nodeType === Node.DOCUMENT_NODE ? (root as Document) : root.ownerDocument;
   if (!doc) return [];
-  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
   const out: Text[] = [];
+  const shadowRoots: ShadowRoot[] = [];
   let n = walker.nextNode();
   while (n) {
-    const t = n as Text;
-    if (t.data.trim() && !inSkippedTree(t)) out.push(t);
+    if (n.nodeType === Node.TEXT_NODE) {
+      const t = n as Text;
+      if (t.data.trim() && !inSkippedTree(t)) out.push(t);
+    } else {
+      const sr = (n as Element).shadowRoot;
+      if (sr) shadowRoots.push(sr);
+    }
+    n = walker.nextNode();
+  }
+  for (const sr of shadowRoots) out.push(...collectTextNodes(sr));
+  return out;
+}
+
+export function collectShadowRoots(root: Node): ShadowRoot[] {
+  const doc = root.nodeType === Node.DOCUMENT_NODE ? (root as Document) : root.ownerDocument;
+  if (!doc) return [];
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  const out: ShadowRoot[] = [];
+  let n = walker.nextNode();
+  while (n) {
+    const sr = (n as Element).shadowRoot;
+    if (sr) {
+      out.push(sr);
+      out.push(...collectShadowRoots(sr));
+    }
     n = walker.nextNode();
   }
   return out;
