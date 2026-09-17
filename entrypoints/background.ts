@@ -1,4 +1,3 @@
-import { hashCandidate } from '@/src/lib/candidates';
 import { getSettings, setSettings } from '@/src/lib/settings';
 import type {
   Candidate,
@@ -7,37 +6,29 @@ import type {
   Settings,
 } from '@/src/lib/types';
 import { classifyCandidates } from '@/src/lib/typesafe';
+import { VerdictCache, type CacheEntry, type CacheStore } from '@/src/lib/verdict-cache';
 
 const CACHE_KEY = 'classifyCache';
-const CACHE_CAP = 2000;
 const BATCH_SIZE = 25;
 const CONCURRENCY = 3;
 
-const memCache = new Map<string, number>();
 const tabStats = new Map<number, { blurred: number; host: string }>();
-let cacheLoaded = false;
 
-async function loadCache() {
-  if (cacheLoaded) return;
-  cacheLoaded = true;
-  try {
-    const res = await chrome.storage.session.get(CACHE_KEY);
-    const obj = res[CACHE_KEY] ?? {};
-    for (const [k, v] of Object.entries(obj)) {
-      if (typeof v === 'number') memCache.set(k, v);
-    }
-  } catch {
-    // session storage unavailable
-  }
-}
+const chromeStore: CacheStore = {
+  async load() {
+    const res = await chrome.storage.local.get(CACHE_KEY);
+    return (res[CACHE_KEY] ?? {}) as Record<string, CacheEntry>;
+  },
+  async save(data) {
+    await chrome.storage.local.set({ [CACHE_KEY]: data });
+  },
+};
 
-async function persistCache() {
-  if (memCache.size > CACHE_CAP) memCache.clear();
-  try {
-    await chrome.storage.session.set({ [CACHE_KEY]: Object.fromEntries(memCache) });
-  } catch {
-    // ignore
-  }
+const cache = new VerdictCache(chromeStore);
+let cacheReady: Promise<void> | null = null;
+function ensureCache() {
+  cacheReady ??= cache.init().catch(() => {});
+  return cacheReady;
 }
 
 async function classify(
@@ -47,13 +38,12 @@ async function classify(
   candidates: Candidate[],
 ): Promise<ClassifyResponse> {
   if (!settings.useAi || !settings.apiKey) return { ok: false, error: 'no_api_key' };
-  await loadCache();
+  await ensureCache();
 
   const results: Record<string, number> = {};
   const missing: Candidate[] = [];
   for (const c of candidates) {
-    const h = hashCandidate(c.text, c.context);
-    const hit = memCache.get(h);
+    const hit = cache.get(c.text, c.context);
     if (hit !== undefined) results[c.id] = hit;
     else missing.push(c);
   }
@@ -74,7 +64,7 @@ async function classify(
           const v = settled[j]![c.id];
           if (v !== undefined) {
             results[c.id] = v;
-            memCache.set(hashCandidate(c.text, c.context), v);
+            cache.set(c.text, c.context, v);
           }
         }
       }
@@ -83,7 +73,7 @@ async function classify(
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 
-  void persistCache();
+  await cache.flush();
   return { ok: true, results };
 }
 
@@ -120,6 +110,15 @@ export default defineBackground(() => {
         }
         case 'GET_STATS':
           sendResponse(tabStats.get(raw.tabId) ?? { blurred: 0, host: '' });
+          break;
+        case 'GET_CACHE_STATS':
+          await ensureCache();
+          sendResponse({ entries: cache.size(), hits: cache.hits, misses: cache.misses });
+          break;
+        case 'CLEAR_CACHE':
+          await ensureCache();
+          await cache.clear();
+          sendResponse({ ok: true });
           break;
         default:
           sendResponse({ ok: false, error: 'unknown_message' });

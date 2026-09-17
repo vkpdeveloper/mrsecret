@@ -74,6 +74,14 @@ export interface RescanMessage {
   type: 'RESCAN';
 }
 
+export interface GetCacheStatsMessage {
+  type: 'GET_CACHE_STATS';
+}
+
+export interface ClearCacheMessage {
+  type: 'CLEAR_CACHE';
+}
+
 export type ExtensionMessage =
   | ClassifyRequest
   | GetSettingsMessage
@@ -81,4 +89,6 @@ export type ExtensionMessage =
   | SettingsChangedMessage
   | StatsMessage
   | GetStatsMessage
-  | RescanMessage;
+  | RescanMessage
+  | GetCacheStatsMessage
+  | ClearCacheMessage;

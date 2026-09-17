@@ -100,5 +100,7 @@ input:focus { outline: 1px solid #2563eb; }
 .slider-row { display: flex; flex-direction: column; gap: 4px; font-size: 13px; padding: 4px 0; }
 input[type="range"] { width: 100%; accent-color: #2563eb; }
 
+.cache-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+
 .muted { color: #64748b; font-size: 12px; }
 .small { font-size: 11px; margin-top: 6px; }

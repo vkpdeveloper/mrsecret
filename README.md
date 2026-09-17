@@ -15,7 +15,7 @@ Blurring wraps the exact matching substring in a blurred `<span>` — the rest o
 
 - Only short text snippets (2–200 chars, < 12 words) plus a ~160-char context window are sent to TypeSafe — never whole pages.
 - All API calls go through the extension's service worker; the page never sees your key.
-- Your API key is stored in `chrome.storage.local` only. Classification results are cached in `chrome.storage.session`.
+- Your API key is stored in `chrome.storage.local` only. Classification verdicts are cached persistently in `chrome.storage.local` (never leaves the browser), so repeat visits cost zero tokens. Decisive verdicts are reused across contexts; borderline ones are keyed to their exact context.
 
 ## Install
 

@@ -13,7 +13,15 @@ export default function App() {
   const [keyDraft, setKeyDraft] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [keySaved, setKeySaved] = useState(false);
+  const [cacheStats, setCacheStats] = useState<{ entries: number; hits: number; misses: number }>();
   const [loaded, setLoaded] = useState(false);
+
+  async function refreshCacheStats() {
+    const stats = (await chrome.runtime
+      .sendMessage({ type: 'GET_CACHE_STATS' })
+      .catch(() => undefined)) as { entries: number; hits: number; misses: number } | undefined;
+    setCacheStats(stats);
+  }
 
   useEffect(() => {
     void (async () => {
@@ -34,6 +42,7 @@ export default function App() {
         }).catch(() => undefined)) as { blurred?: number } | undefined;
         setBlurred(stats?.blurred ?? 0);
       }
+      await refreshCacheStats();
       setLoaded(true);
     })();
   }, []);
@@ -127,6 +136,24 @@ export default function App() {
               : 'No key — regex-only mode'}
           {' · Get a key at typesafe.ai'}
         </div>
+        {cacheStats && (
+          <div className="cache-row">
+            <span className="muted small">
+              Cached verdicts: {cacheStats.entries} · hits {cacheStats.hits} / misses{' '}
+              {cacheStats.misses}
+            </span>
+            <button
+              className="btn ghost"
+              onClick={() =>
+                void chrome.runtime
+                  .sendMessage({ type: 'CLEAR_CACHE' })
+                  .then(() => refreshCacheStats())
+              }
+            >
+              Clear cache
+            </button>
+          </div>
+        )}
       </Section>
 
       <Section title="Sensitivity">
