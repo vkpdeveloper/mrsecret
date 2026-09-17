@@ -31,6 +31,7 @@ export interface Settings {
   hoverReveal: boolean;
   disabledHosts: string[];
   useAi: boolean;
+  siteThresholds: Record<string, number>; // host -> threshold
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -40,6 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hoverReveal: true,
   disabledHosts: [],
   useAi: true,
+  siteThresholds: {},
 };
 
 export interface GetSettingsMessage {

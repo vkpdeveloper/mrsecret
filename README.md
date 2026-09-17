@@ -32,7 +32,7 @@ Open the popup, paste your TypeSafe API key, and you're set. Try `demo/index.htm
 
 - Master enable/disable, per-site disable, rescan
 - AI classifier on/off + API key
-- Sensitivity threshold (0.4–0.95)
+- Sensitivity threshold (0.4–0.95), with optional per-site overrides
 - Hover-to-reveal
 
 ## Dev

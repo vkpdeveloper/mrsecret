@@ -4,6 +4,10 @@ const KEY = 'settings';
 
 const hasChrome = typeof chrome !== 'undefined' && !!chrome.storage?.local;
 
+export function effectiveThreshold(s: Settings, host: string): number {
+  return s.siteThresholds[host] ?? s.threshold;
+}
+
 export async function getSettings(): Promise<Settings> {
   if (!hasChrome) return { ...DEFAULT_SETTINGS };
   const res = await chrome.storage.local.get(KEY);

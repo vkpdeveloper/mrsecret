@@ -1,7 +1,7 @@
 import { buildContext, collectShadowRoots, collectTextNodes, isCandidateText } from '@/src/lib/candidates';
 import { detectSecrets } from '@/src/lib/detectors';
 import type { ClassifyResponse, ExtensionMessage, Settings } from '@/src/lib/types';
-import { getSettings } from '@/src/lib/settings';
+import { effectiveThreshold, getSettings } from '@/src/lib/settings';
 
 const BLUR_CLASS = 'mrsecret-blur';
 const STYLE_ID = 'mrsecret-style';
@@ -176,7 +176,7 @@ export default defineContentScript({
           try {
             for (const c of candidates) {
               const p = res.results[c.id];
-              if (p !== undefined && p >= settings.threshold &&
+              if (p !== undefined && p >= effectiveThreshold(settings, location.host) &&
                   c.node.isConnected && c.node.data === c.text) {
                 try {
                   wrapWhole(c.node, 'ai_classified');
@@ -284,7 +284,10 @@ export default defineContentScript({
         return;
       }
       const wasActive = !!prev && prev.enabled && !prev.disabledHosts.includes(location.host);
-      if (wasActive && prev.threshold !== next.threshold) {
+      if (
+        wasActive &&
+        effectiveThreshold(prev!, location.host) !== effectiveThreshold(next, location.host)
+      ) {
         unblurAll();
         void scanRoot(document.documentElement);
         return;

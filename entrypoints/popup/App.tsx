@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getSettings, setSettings } from '@/src/lib/settings';
+import { effectiveThreshold, getSettings } from '@/src/lib/settings';
 import type { Settings } from '@/src/lib/types';
 import { DEFAULT_SETTINGS } from '@/src/lib/types';
 import { Section } from './Section';
@@ -83,6 +83,12 @@ export default function App() {
           <div className="site-info">
             <span className="host">{host || 'current page'}</span>
             <span className="muted">Blurred: {blurred}</span>
+            {host && (
+              <span className="muted small">
+                Threshold: {effectiveThreshold(settings, host).toFixed(2)}{' '}
+                ({host in settings.siteThresholds ? 'site' : 'default'})
+              </span>
+            )}
           </div>
           <button className="btn" onClick={() => void rescan()}>Rescan</button>
         </div>
@@ -125,7 +131,7 @@ export default function App() {
 
       <Section title="Sensitivity">
         <label className="slider-row">
-          <span>Threshold {settings.threshold.toFixed(2)}</span>
+          <span>Default threshold {settings.threshold.toFixed(2)}</span>
           <input
             type="range"
             min={0.4}
@@ -135,6 +141,40 @@ export default function App() {
             onChange={(e) => void update({ threshold: Number(e.target.value) })}
           />
         </label>
+        {host && (
+          <>
+            <Toggle
+              label={`Custom threshold for ${host}`}
+              checked={host in settings.siteThresholds}
+              onChange={(v) => {
+                const siteThresholds = { ...settings.siteThresholds };
+                if (v) siteThresholds[host] = settings.threshold;
+                else delete siteThresholds[host];
+                void update({ siteThresholds });
+              }}
+            />
+            {host in settings.siteThresholds && (
+              <label className="slider-row">
+                <span>{host} threshold {settings.siteThresholds[host]!.toFixed(2)}</span>
+                <input
+                  type="range"
+                  min={0.4}
+                  max={0.95}
+                  step={0.05}
+                  value={settings.siteThresholds[host]!}
+                  onChange={(e) =>
+                    void update({
+                      siteThresholds: {
+                        ...settings.siteThresholds,
+                        [host]: Number(e.target.value),
+                      },
+                    })
+                  }
+                />
+              </label>
+            )}
+          </>
+        )}
         <Toggle
           label="Reveal on hover"
           checked={settings.hoverReveal}
