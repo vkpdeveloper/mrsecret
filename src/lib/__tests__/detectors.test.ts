@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectSecrets, entropy, luhn } from '../detectors';
+import { detectSecrets, entropy, leftoverSegments, luhn } from '../detectors';
 
 const kinds = (text: string) => detectSecrets(text).map((s) => s.kind);
 
@@ -61,6 +61,19 @@ describe('detectSecrets', () => {
     const spans = detectSecrets(text);
     expect(spans).toHaveLength(1);
     expect(spans[0]!.end - spans[0]!.start).toBe(text.length);
+  });
+});
+
+describe('leftoverSegments', () => {
+  it('returns text around regex hits so it can be AI-classified', () => {
+    const text = 'Vaibhav Patel (vaibhav@example.com)';
+    const spans = detectSecrets(text);
+    expect(spans).toHaveLength(1);
+    const leftovers = leftoverSegments(text, spans);
+    expect(leftovers).toEqual(['Vaibhav Patel (', ')']);
+    // only the name fragment is a plausible AI candidate
+    const candidateLike = leftovers.filter((s) => s.trim().length >= 2 && /[A-Za-z]/.test(s));
+    expect(candidateLike).toEqual(['Vaibhav Patel (']);
   });
 });
 

@@ -128,7 +128,7 @@ export default function App() {
           <span>Threshold {settings.threshold.toFixed(2)}</span>
           <input
             type="range"
-            min={0.5}
+            min={0.4}
             max={0.95}
             step={0.05}
             value={settings.threshold}

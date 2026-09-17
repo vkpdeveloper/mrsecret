@@ -2,14 +2,14 @@ import type { Candidate } from './types';
 
 const ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 
-const INSTRUCTIONS = (i: number) =>
-  `Is candidate \`candidates[${i}].text\` (see its surrounding \`candidates[${i}].context\`) personal, private, or account-identifying information that the page owner would want hidden while screen sharing or streaming?`;
+const QUESTION =
+  'Is the following text, shown on the page described in state, personal, private, or account-identifying information that the page owner would want hidden while screen sharing or streaming?';
 
 const CRITERIA_TRUE =
-  "A real person's name, an email address, a company/organization/team/workspace name, an account/organization/project/customer ID, an API key, token, or secret, a billing amount, credit balance, invoice total, a phone number, or a physical address.";
+  "The text IS an actual value: a real person's name or username, an email address, a company/organization/team/workspace name, an account/organization/project/customer ID, an API key, token, or secret, a billing amount, credit balance, invoice total, a phone number, or a physical address.";
 
 const CRITERIA_FALSE =
-  'Generic UI text such as navigation labels, buttons, headings, menu items, product/feature names, documentation, placeholder text, dates, counts, or any text that is not specific to this user or their account.';
+  "The text is generic UI text: navigation labels, buttons, headings, menu items, product/feature names, documentation, placeholder text, dates, counts, or a field label/caption that merely names a kind of data (e.g. 'API keys', 'Email address', 'Organization ID', 'Credit balance') without containing the actual value.";
 
 export async function classifyCandidates(
   apiKey: string,
@@ -19,21 +19,17 @@ export async function classifyCandidates(
 ): Promise<Record<string, number>> {
   const body = {
     model: 'jev-latest',
-    state: {
-      page_title: pageTitle,
-      page_url: pageUrl,
-      candidates: candidates.map((c) => ({
-        id: c.id,
-        text: c.text,
-        context: c.context,
-      })),
-    },
+    state: { page_title: pageTitle, page_url: pageUrl },
     questions: Object.fromEntries(
-      candidates.map((c, i) => [
+      candidates.map((c) => [
         c.id,
         {
           type: 'noul',
-          instructions: INSTRUCTIONS(i),
+          instructions: {
+            question: QUESTION,
+            text: c.text.trim(),
+            surrounding_text: c.context,
+          },
           criteria: { true: CRITERIA_TRUE, false: CRITERIA_FALSE },
         },
       ]),

@@ -36,7 +36,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   apiKey: '',
   enabled: true,
-  threshold: 0.7,
+  threshold: 0.6,
   hoverReveal: true,
   disabledHosts: [],
   useAi: true,

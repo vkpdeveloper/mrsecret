@@ -98,6 +98,17 @@ function mergeSpans(spans: Span[]): Span[] {
   return out;
 }
 
+export function leftoverSegments(text: string, spans: Span[]): string[] {
+  const out: string[] = [];
+  let pos = 0;
+  for (const s of spans) {
+    if (s.start > pos) out.push(text.slice(pos, s.start));
+    pos = Math.max(pos, s.end);
+  }
+  if (pos < text.length) out.push(text.slice(pos));
+  return out;
+}
+
 export function detectSecrets(text: string): Span[] {
   const spans: Span[] = [];
   for (const rule of RULES) {

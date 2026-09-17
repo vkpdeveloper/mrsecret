@@ -50,9 +50,9 @@ export default defineContentScript({
       return false;
     }
 
-    function wrapRange(node: Text, start: number, end: number, kind: string) {
+    function wrapRange(node: Text, start: number, end: number, kind: string): Text {
       const mid = node.splitText(start);
-      mid.splitText(end - start);
+      const tail = mid.splitText(end - start);
       const span = document.createElement('span');
       span.className = BLUR_CLASS;
       span.dataset.mrsecret = kind;
@@ -60,8 +60,8 @@ export default defineContentScript({
       mid.parentNode?.replaceChild(span, mid);
       span.appendChild(mid);
       processed.add(mid);
-      const tail = span.nextSibling;
-      if (tail && tail.nodeType === Node.TEXT_NODE) processed.add(tail as Text);
+      processed.add(tail);
+      return tail;
     }
 
     function wrapWhole(node: Text, kind: string) {
@@ -104,13 +104,25 @@ export default defineContentScript({
           const spans = detectSecrets(text);
           if (spans.length) {
             if (!node.isConnected) continue;
+            const leftovers: Text[] = [];
             // wrap spans right-to-left so offsets stay valid
             for (let i = spans.length - 1; i >= 0; i--) {
               const s = spans[i]!;
               try {
-                wrapRange(node, s.start, s.end, s.kind);
+                leftovers.push(wrapRange(node, s.start, s.end, s.kind));
               } catch {
                 // node changed concurrently
+              }
+            }
+            leftovers.push(node); // head: text before the first span
+            for (const t of leftovers) {
+              if (isCandidateText(t.data) && /[A-Za-z]/.test(t.data)) {
+                candidates.push({
+                  node: t,
+                  text: t.data,
+                  id: `c${nextId++}`,
+                  context: buildContext(t),
+                });
               }
             }
           } else if (isCandidateText(text)) {
